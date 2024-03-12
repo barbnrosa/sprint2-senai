@@ -74,6 +74,15 @@ def tratamento_pj(df):
 
     df_final = df.rename(columns=mapeamento_nomes)
 
+    def processar_valor(valor):
+        if 'NÃO INFORMADO' in valor:
+            return valor.replace(' / NÃO INFORMADO', '')  # Remove apenas a parte 'NÃO INFORMADO'
+        else:
+            return f'{valor}'
+
+    # Aplica a função à coluna 'Área de Atuação e Produto GPOM'
+    df_final['Produto GPOM e Área de Atuação'] = df_final['Produto GPOM e Área de Atuação'].apply(processar_valor)
+
     return df_final
 
 def tratamento_pf(df):
@@ -165,5 +174,14 @@ def tratamento_pf(df):
     }
 
     df_final = df.rename(columns=mapeamento_nomes)
+
+    def processar_valor(valor):
+        if 'NÃO INFORMADO' in valor:
+            return valor.replace(' / NÃO INFORMADO', '')  # Remove apenas a parte 'NÃO INFORMADO'
+        else:
+            return f'{valor}'
+
+    # Aplica a função à coluna 'Área de Atuação e Produto GPOM'
+    df_final['Produto GPOM e Área de Atuação'] = df_final['Produto GPOM e Área de Atuação'].apply(processar_valor)
 
     return df_final

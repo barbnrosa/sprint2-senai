@@ -190,78 +190,135 @@ if choose == "Sobre os Dados":
 # Page 3 - Regra de Associação
 
 elif choose == "Regra de Associação":
-    #st.header("Regra de Associação")    
-  
+    #st.header("Regra de Associação")   
+    st.markdown('## <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True) 
     st.markdown(""" <style> .font {
     font-size:35px ; font-family: 'Cooper Black'; color: #00547c;} 
-    </style> """, unsafe_allow_html=True)
-    st.markdown('## <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True)  
-
-    selected_base = st.radio(
-        "Selecione a Base de Dados que deseja visualizar", 
-        ["Pessoa Física", "Pessoa Jurídica"],
-        horizontal=True)
-    
-    if selected_base == "Pessoa Física":
-        regras = processar_regras_associacao_pf(df_pf)
-        df = df_pf
-        
-    else:
-        regras = processar_regras_associacao_pj(df_pj)
+    </style> """, unsafe_allow_html=True) 
+ 
+    aba1, aba2 = st.tabs(['Pessoa Jurídica', 'Pessoa Física'])
+    with aba1:
         df = df_pj
+
+        st.markdown('### <span style="color:#00547c"> Filtrando por Perfil de Cliente: </span>', unsafe_allow_html=True) 
+
+        col1, col2 = st.columns(2)
+        with col1:
+            ibge_options = df_pj['Setor IBGE'].value_counts().index.tolist()
+            selected_setor_ibge = st.selectbox('Selecione Setor IBGE', ibge_options)
+            filtered_df_pj_ibge = df_pj[df_pj['Setor IBGE'] == selected_setor_ibge]
+
+            porte_options = filtered_df_pj_ibge['Porte'].value_counts().index.tolist()
+            selected_porte = st.selectbox('Selecione o porte da empresa', porte_options)
+            filtered_df_pj_porte = filtered_df_pj_ibge[filtered_df_pj_ibge['Porte'] == selected_porte]
+
+        with col2:
+            estado_options_pj = filtered_df_pj_porte['Estado'].value_counts().index.tolist()
+            selected_estado_pj = st.selectbox('Selecione um estado', estado_options_pj)
+            filtered_df_pj_estado = filtered_df_pj_porte[filtered_df_pj_porte['Estado'] == selected_estado_pj]
+            
+            cidade_options_pj = filtered_df_pj_estado['Cidade'].value_counts().index.tolist()
+            selected_cidade_pj = st.selectbox('Selecione uma cidade', cidade_options_pj)
+            filtered_df_pj_cidade = filtered_df_pj_estado[filtered_df_pj_estado['Cidade'] == selected_cidade_pj]
+
+        cnae_options = filtered_df_pj_cidade['Classificação CNAE - Subclasse'].value_counts().index.tolist()
+        selected_cnae = st.selectbox('Selecione uma classificação CNAE', cnae_options)
+        filtered_df_pj = filtered_df_pj_cidade[filtered_df_pj_cidade['Classificação CNAE - Subclasse'] == selected_cnae]
         
-    
-    with st.expander("Visualizar Regras de Associação"):
-        st.markdown('### <span style="color:#00547c"> Algoritmo Apriori </span>', unsafe_allow_html=True)  
-        # Executar o processamento das regras de associação
-         # Adicionar controle deslizante para a porcentagem de confiança
-        #min_confidence = st.slider("Selecione a porcentagem mínima de confiança:", min_value=0.0, max_value=1.0, step=0.05, value=0.2)
+        regras_pj = processar_regras_associacao_pj(filtered_df_pj) 
+        
+         # Create an expander for the filtered table
+        with st.expander('Visualizar tabela filtrada', expanded=False):
+            st.markdown('#### <span style="color:#00547c"> Tabela filtrada </span>', unsafe_allow_html=True) 
+            st.dataframe(filtered_df_pj)
 
-        # Exibir o resultado na aplicação Streamlit
-        st.write(regras)
-         # Adicionar um botão para exportar para CSV
-        if st.button("Exportar para CSV"):
-            csv = regras.to_csv(index=False)
-            st.download_button(label="Baixar CSV", data=csv, file_name='regras_apriori.csv', mime='text/csv')
 
-    
-    st.markdown('### <span style="color:#00547c"> Filtrando por Perfil de Cliente: </span>', unsafe_allow_html=True) 
+        # Função para filtrar os produtos consequentes relacionados ao produto antecedente clicado
+        def filter_consequents(antecedent):
+            consequents = regras_pj[regras_pj['antecedents'].apply(lambda x: antecedent in x)]['consequents']
+            return consequents.explode().unique()
 
-    # Função para filtrar os produtos consequentes relacionados ao produto antecedente clicado
-    def filter_consequents(antecedent):
-        consequents = regras[regras['antecedents'].apply(lambda x: antecedent in x)]['consequents']
-        return consequents.explode().unique()
+        # Display the association rules
+        st.markdown('#### <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True) 
 
-    selected_setor_ibge = st.selectbox('Select Setor IBGE', df_pj['Setor IBGE'].unique())
-    selected_porte = st.selectbox('Select Porte', df_pj['Porte'].unique())
+        antecedents = regras_pj['antecedents'].explode().unique()
 
-    filtered_df = df_pj[(df_pj['Setor IBGE'] == selected_setor_ibge) & (df_pj['Porte'] == selected_porte)]
+        col1, col2 = st.columns(2)
 
-   # Create an expander for the filtered table
-    with st.expander('Visualizar tabela filtrada', expanded=False):
-        st.markdown('#### <span style="color:#00547c"> Tabela filtrada </span>', unsafe_allow_html=True) 
-        st.dataframe(filtered_df)
+        for i, antecedent in enumerate(antecedents):
+            if i % 2 == 0:
+                with col1.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                    consequents = filter_consequents(antecedent)
+                    st.write(consequents)
+            else:
+                with col2.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                    consequents = filter_consequents(antecedent)
+                    st.write(consequents)
 
-    # Display the association rules
-    st.markdown('#### <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True) 
+        # Display the modified dataframe
+        with st.expander('Visualização geral de regra de associação com filtro', expanded=False):
+            st.dataframe(regras_pj.sort_values("support", ascending=False))
 
-    antecedents = regras['antecedents'].explode().unique()
+            if st.button("Exportar para CSV"):
+                csv = regras_pj.to_csv(index=False)
+                st.download_button(label="Baixar CSV", data=csv, file_name='regras_apriori_pj.csv', mime='text/csv', key='exported_pj')
 
-    col1, col2 = st.columns(2)
 
-    for i, antecedent in enumerate(antecedents):
-        if i % 2 == 0:
-            with col1.expander(f'Produtos consequentes de {antecedent}', expanded=False):
-                consequents = filter_consequents(antecedent)
-                st.write(consequents)
-        else:
-            with col2.expander(f'Produtos consequentes de {antecedent}', expanded=False):
-                consequents = filter_consequents(antecedent)
-                st.write(consequents)
+    with aba2:
+        df = df_pf
 
-    # Display the modified dataframe
-    with st.expander('Visualização geral de regra de associação com filtro', expanded=False):
-        st.dataframe(regras.sort_values("support", ascending=False))
+        st.markdown('### <span style="color:#00547c"> Filtrando por Perfil de Cliente: </span>', unsafe_allow_html=True) 
+
+        selected_idade = st.selectbox('Selecione uma idade', df_pf['Idade'].unique())
+        filtered_df_pf_1 = df_pf[df_pf['Idade'] == selected_idade]
+
+        estado_options = filtered_df_pf_1['Estado'].unique()
+        selected_estado = st.selectbox('Selecione um estado', estado_options)
+
+        cidade_options = filtered_df_pf_1[filtered_df_pf_1['Idade'] == selected_idade]['Cidade'].unique()
+        selected_cidade = st.selectbox('Selecione uma cidade', cidade_options)
+
+
+        filtered_df_pf = df_pf[(df_pf['Idade'] == selected_idade) & (df_pj['Estado'] == selected_estado) & (df_pj['Cidade'] == selected_cidade)]
+        
+        regras_pf = processar_regras_associacao_pf(filtered_df_pf) 
+        
+         # Create an expander for the filtered table
+        with st.expander('Visualizar tabela filtrada', expanded=False):
+            st.markdown('#### <span style="color:#00547c"> Tabela filtrada </span>', unsafe_allow_html=True) 
+            st.dataframe(filtered_df_pf)
+
+
+        # Função para filtrar os produtos consequentes relacionados ao produto antecedente clicado
+        def filter_consequents(antecedent):
+            consequents = regras_pf[regras_pf['antecedents'].apply(lambda x: antecedent in x)]['consequents']
+            return consequents.explode().unique()
+
+        # Display the association rules
+        st.markdown('#### <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True) 
+
+        antecedents = regras_pf['antecedents'].explode().unique()
+
+        col1, col2 = st.columns(2)
+
+        for i, antecedent in enumerate(antecedents):
+            if i % 2 == 0:
+                with col1.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                    consequents = filter_consequents(antecedent)
+                    st.write(consequents)
+            else:
+                with col2.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                    consequents = filter_consequents(antecedent)
+                    st.write(consequents)
+
+        # Display the modified dataframe
+        with st.expander('Visualização geral de regra de associação com filtro', expanded=False):
+            st.dataframe(regras_pf.sort_values("support", ascending=False))
+
+            if st.button("Exportar os dados de Pessoa Física para CSV"):
+                csv = regras_pf.to_csv(index=False)
+                st.download_button(label="Baixar CSV", data=csv, file_name='regras_apriori_pf.csv', mime='text/csv', key='exported_pf')
+
 
 
 
