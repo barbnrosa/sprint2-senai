@@ -263,6 +263,31 @@ elif choose == "Regra de Associação":
                 csv = regras_pj.to_csv(index=False)
                 st.download_button(label="Baixar CSV", data=csv, file_name='regras_apriori_pj.csv', mime='text/csv', key='exported_pj')
 
+        # Construção do DataFrame para o Treemap
+        data = {'antecedents': [], 'consequents': [], 'confidence': []}
+        for index, row in regras_pj.iterrows():
+            antecedente = list(row['antecedents'])[0]  # Convertendo frozenset para lista
+            consequentes = list(row['consequents'])    # Convertendo frozenset para lista
+            confidence = row['confidence']      # Multiplicando por 100 para obter a porcentagem
+            for consequent in consequentes:
+                data['antecedents'].append(antecedente)
+                data['consequents'].append(consequent)
+                data['confidence'].append(confidence)
+
+        # Criando o DataFrame
+        df = pd.DataFrame(data)
+
+        # Criando o Treemap com rótulos de porcentagem de confiança
+        fig = px.treemap(df, path=['antecedents', 'consequents'], color='antecedents', 
+                        labels={'confidence': 'Confidence (%)'},
+                        hover_data={'confidence': True}, color_discrete_sequence=px.colors.sequential.Blues)  # Exibindo a porcentagem de confiança ao passar o mouse
+
+        # Adicionando rótulos de confiança em cada retângulo
+        #fig.update_traces(textinfo='label+percent entry')
+        fig.update_layout(height=700, width=1200)
+
+        # Exibindo o Treemap com Streamlit
+        st.plotly_chart(fig)
 
     with aba2:
         df = df_pf
