@@ -240,7 +240,7 @@ elif choose == "Regra de Associação":
             return consequents.explode().unique()
 
         # Display the association rules
-        st.markdown('#### <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True) 
+        st.markdown('#### <span style="color:#00547c"> Produtos associados ao perfil de cliente selecionado</span>', unsafe_allow_html=True) 
 
         antecedents = regras_pj['antecedents'].explode().unique()
 
@@ -248,11 +248,13 @@ elif choose == "Regra de Associação":
 
         for i, antecedent in enumerate(antecedents):
             if i % 2 == 0:
-                with col1.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                with col1.expander(f'{antecedent}', expanded=False):
+                    st.markdown('##### <span style="color:#00547c"> Produtos consequentes</span>', unsafe_allow_html=True)
                     consequents = filter_consequents(antecedent)
                     st.write(consequents)
             else:
-                with col2.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                with col2.expander(f'{antecedent}', expanded=False):
+                    st.markdown('##### <span style="color:#00547c"> Produtos consequentes</span>', unsafe_allow_html=True)
                     consequents = filter_consequents(antecedent)
                     st.write(consequents)
         
@@ -308,13 +310,14 @@ elif choose == "Regra de Associação":
         # Atualizando o layout do gráfico
         fig.update_layout(
             barmode='stack',
-            yaxis_title='Antecedents',
+            yaxis_title='Antecedentes',
             xaxis_title='Ocorrências',
-            title=''
+            title='',
+            legend_title='Consequentes'
         )
         fig.update_layout(height=800, width=1400)
 
-        st.markdown('#### <span style="color:#00547c"> Gráfico de barras empilhadas relacionando produtos antecedentes com consequentes</span>', unsafe_allow_html=True) 
+        st.markdown('#### <span style="color:#00547c"> Relação de produtos antecedentes com consequentes</span>', unsafe_allow_html=True) 
         # Exibindo o gráfico
         st.plotly_chart(fig)
         #####################################################################################
@@ -387,7 +390,7 @@ elif choose == "Regra de Associação":
             return consequents.explode().unique()
 
         # Display the association rules
-        st.markdown('#### <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True) 
+        st.markdown('#### <span style="color:#00547c"> Produtos associados ao perfil de cliente selecionado </span>', unsafe_allow_html=True) 
 
         antecedents = regras_pf['antecedents'].explode().unique()
 
@@ -395,11 +398,13 @@ elif choose == "Regra de Associação":
 
         for i, antecedent in enumerate(antecedents):
             if i % 2 == 0:
-                with col1.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                with col1.expander(f'{antecedent}', expanded=False):
+                    st.markdown('##### <span style="color:#00547c"> Produtos consequentes</span>', unsafe_allow_html=True)
                     consequents = filter_consequents(antecedent)
                     st.write(consequents)
             else:
-                with col2.expander(f'Produtos consequentes de {antecedent}', expanded=False):
+                with col2.expander(f'{antecedent}', expanded=False):
+                    st.markdown('##### <span style="color:#00547c"> Produtos consequentes</span>', unsafe_allow_html=True)
                     consequents = filter_consequents(antecedent)
                     st.write(consequents)
 
@@ -455,13 +460,14 @@ elif choose == "Regra de Associação":
         # Atualizando o layout do gráfico
         fig.update_layout(
             barmode='stack',
-            yaxis_title='Antecedents',
+            yaxis_title='Antecedentes',
             xaxis_title='Ocorrências',
-            title=''
+            title='',
+            legend_title='Consequentes'
         )
         fig.update_layout(height=800, width=1400)
 
-        st.markdown('#### <span style="color:#00547c"> Gráfico de barras empilhadas relacionando produtos antecedentes com consequentes</span>', unsafe_allow_html=True) 
+        st.markdown('#### <span style="color:#00547c"> Relação de produtos antecedentes com consequentes</span>', unsafe_allow_html=True) 
         # Exibindo o gráfico
         st.plotly_chart(fig)
         #####################################################################################
