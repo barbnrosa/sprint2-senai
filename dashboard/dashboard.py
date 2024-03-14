@@ -18,7 +18,7 @@ from plotly.subplots import make_subplots
 import json
 import requests
 from tratamento_dados import tratamento_pj, tratamento_pf
-from funcoes import processar_regras_associacao_pf, processar_regras_associacao_pj
+from funcoes import processar_regras_associacao_pf, processar_regras_associacao_pj, find_associated_products
 from mlxtend.preprocessing import TransactionEncoder
 from mlxtend.frequent_patterns import apriori, association_rules
 import plotly.graph_objects as go
@@ -190,7 +190,6 @@ if choose == "Sobre os Dados":
 # Page 3 - Regra de Associação
 
 elif choose == "Regra de Associação":
-    #st.header("Regra de Associação")   
     st.markdown('## <span style="color:#00547c"> Regra de Associação </span>', unsafe_allow_html=True) 
     st.markdown(""" <style> .font {
     font-size:35px ; font-family: 'Cooper Black'; color: #00547c;} 
@@ -201,7 +200,7 @@ elif choose == "Regra de Associação":
         df = df_pj
 
         st.markdown('### <span style="color:#00547c"> Filtrando por Perfil de Cliente: </span>', unsafe_allow_html=True) 
-
+        ###################################### Filtros ###################################### 
         col1, col2 = st.columns(2)
         with col1:
             ibge_options = df_pj['Setor IBGE'].value_counts().index.tolist()
@@ -224,7 +223,9 @@ elif choose == "Regra de Associação":
         cnae_options = filtered_df_pj_cidade['Classificação CNAE - Subclasse'].value_counts().index.tolist()
         selected_cnae = st.selectbox('Selecione uma classificação CNAE', cnae_options)
         filtered_df_pj = filtered_df_pj_cidade[filtered_df_pj_cidade['Classificação CNAE - Subclasse'] == selected_cnae]
-        
+        ##################################################################################### 
+        ############################### Regras de associacao ################################
+
         regras_pj = processar_regras_associacao_pj(filtered_df_pj) 
         
          # Create an expander for the filtered table
@@ -254,16 +255,21 @@ elif choose == "Regra de Associação":
                 with col2.expander(f'Produtos consequentes de {antecedent}', expanded=False):
                     consequents = filter_consequents(antecedent)
                     st.write(consequents)
-
+        
         # Display the modified dataframe
+        regras_pj_d = regras_pj.copy()
+        regras_pj_d['antecedents'] = regras_pj_d['antecedents'].apply(lambda x: ', '.join(x))
+        regras_pj_d['consequents'] = regras_pj_d['consequents'].apply(lambda x: ', '.join(x))
+
         with st.expander('Visualização geral de regra de associação com filtro', expanded=False):
-            st.dataframe(regras_pj.sort_values("support", ascending=False))
+            st.dataframe(regras_pj_d.sort_values("support", ascending=False))
 
             if st.button("Exportar para CSV"):
-                csv = regras_pj.to_csv(index=False)
+                csv = regras_pj_d.to_csv(index=False)
                 st.download_button(label="Baixar CSV", data=csv, file_name='regras_apriori_pj.csv', mime='text/csv', key='exported_pj')
-
-        # Construção do DataFrame 
+        #####################################################################################
+        ################################# Grafico de Barras #################################
+        # Construção do DataFrame para o Treemap
         data = {'antecedents': [], 'consequents': [], 'confidence': []}
         for index, row in regras_pj.iterrows():
             antecedente = list(row['antecedents'])[0]  # Convertendo frozenset para lista
@@ -311,27 +317,65 @@ elif choose == "Regra de Associação":
         st.markdown('#### <span style="color:#00547c"> Gráfico de barras empilhadas relacionando produtos antecedentes com consequentes</span>', unsafe_allow_html=True) 
         # Exibindo o gráfico
         st.plotly_chart(fig)
+        #####################################################################################
+        ############################# Recomendacao por Cliente ##############################
+        st.markdown('#### <span style="color:#00547c"> Filtrando por Cliente: </span>', unsafe_allow_html=True) 
 
+        produto_counts = filtered_df_pj.groupby(['ID Cliente', 'Produto GPOM e Área de Atuação']).size()
+
+        # Filtrar para obter apenas clientes com produtos que aparecem mais de uma vez
+        cliente_options = produto_counts[produto_counts > 2].reset_index()['ID Cliente'].unique()
+        select_cliente = st.selectbox('Selecione um Cliente', cliente_options)
+
+        produtos = filtered_df_pj[filtered_df_pj['ID Cliente'] == select_cliente]['Produto GPOM e Área de Atuação'].unique()
+        associated_products = find_associated_products(produtos, regras_pj)
+        
+        with st.expander(f'Produtos comprados e recomendados do cliente {select_cliente}', expanded=False):
+            col1, col2 = st.columns(2)
+            with col1: 
+                st.markdown('#### <span style="color:#00547c"> Produtos comprados </span>', unsafe_allow_html=True)
+                st.dataframe(produtos, use_container_width=True)
+            with col2:
+                st.markdown('#### <span style="color:#00547c"> Produtos recomendados </span>', unsafe_allow_html=True)
+                if associated_products:
+                    # Se houver produtos associados, mostramos eles
+                    st.dataframe(associated_products, use_container_width=True)
+                else:
+                    # Se não houver produtos associados, mostrar uma mensagem
+                    st.write("Não há produtos associados para mostrar.")
+        #####################################################################################
     with aba2:
         df = df_pf
-
-        st.markdown('### <span style="color:#00547c"> Filtrando por Perfil de Cliente: </span>', unsafe_allow_html=True) 
-
-        selected_idade = st.selectbox('Selecione uma idade', df_pf['Idade'].unique())
-        filtered_df_pf_1 = df_pf[df_pf['Idade'] == selected_idade]
-
-        estado_options = filtered_df_pf_1['Estado'].unique()
-        selected_estado = st.selectbox('Selecione um estado', estado_options)
-
-        cidade_options = filtered_df_pf_1[filtered_df_pf_1['Idade'] == selected_idade]['Cidade'].unique()
-        selected_cidade = st.selectbox('Selecione uma cidade', cidade_options)
-
-
-        filtered_df_pf = df_pf[(df_pf['Idade'] == selected_idade) & (df_pj['Estado'] == selected_estado) & (df_pj['Cidade'] == selected_cidade)]
+        ###################################### Filtros ###################################### 
+        st.markdown('### <span style="color:#00547c"> Filtrando por Perfil de Cliente: </span>', unsafe_allow_html=True)
         
+        faixas_etarias = {
+        '0 a 12 anos': (0, 12),
+        '13 a 17 anos': (13, 17),
+        '18 a 24 anos': (18, 24),
+        '25 a 34 anos': (25, 34),
+        '35 a 64 anos': (35, 64),
+        '65 anos ou mais': (65, 80),
+        'Todas': (0, 80) 
+    }
+        faixas = ['0 a 12 anos', '13 a 17 anos', '18 a 24 anos', '25 a 34 anos', '35 a 64 anos', '65 anos ou mais', 'Todas']
+        faixa_etaria = st.selectbox('Selecione a faixa etária desejada:', faixas)
+        idade_inicio, idade_fim = faixas_etarias[faixa_etaria]
+        filtered_df_pf_idade = df[(df['Idade'] >= idade_inicio) & (df['Idade'] <= idade_fim)]
+
+        estado_options = filtered_df_pf_idade['Estado'].value_counts().index.tolist()
+        selected_estado = st.selectbox('Selecione um estado', estado_options)
+        filtered_df_pf_estado = filtered_df_pf_idade[filtered_df_pf_idade['Estado'] == selected_estado]
+
+        cidade_options = filtered_df_pf_estado['Cidade'].value_counts().index.tolist()
+        selected_cidade = st.selectbox('Selecione uma cidade', cidade_options)
+        filtered_df_pf = filtered_df_pf_estado[filtered_df_pf_estado['Cidade'] == selected_cidade]
+
+        ##################################################################################### 
+        ############################### Regras de associacao ################################
         regras_pf = processar_regras_associacao_pf(filtered_df_pf) 
         
-         # Create an expander for the filtered table
+        # Create an expander for the filtered table
         with st.expander('Visualizar tabela filtrada', expanded=False):
             st.markdown('#### <span style="color:#00547c"> Tabela filtrada </span>', unsafe_allow_html=True) 
             st.dataframe(filtered_df_pf)
@@ -347,7 +391,7 @@ elif choose == "Regra de Associação":
 
         antecedents = regras_pf['antecedents'].explode().unique()
 
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2) 
 
         for i, antecedent in enumerate(antecedents):
             if i % 2 == 0:
@@ -360,19 +404,97 @@ elif choose == "Regra de Associação":
                     st.write(consequents)
 
         # Display the modified dataframe
+        regras_pf_d = regras_pf.copy()
+        regras_pf_d['antecedents'] = regras_pf_d['antecedents'].apply(lambda x: ', '.join(x))
+        regras_pf_d['consequents'] = regras_pf_d['consequents'].apply(lambda x: ', '.join(x))
+
         with st.expander('Visualização geral de regra de associação com filtro', expanded=False):
-            st.dataframe(regras_pf.sort_values("support", ascending=False))
+            st.dataframe(regras_pf_d.sort_values("support", ascending=False))
 
             if st.button("Exportar os dados de Pessoa Física para CSV"):
-                csv = regras_pf.to_csv(index=False)
+                csv = regras_pf_d.to_csv(index=False)
                 st.download_button(label="Baixar CSV", data=csv, file_name='regras_apriori_pf.csv', mime='text/csv', key='exported_pf')
+        #####################################################################################
+        ################################# Grafico de Barras #################################
+        # Construção do DataFrame para o Treemap
+        data = {'antecedents': [], 'consequents': [], 'confidence': []}
+        for index, row in regras_pf.iterrows():
+            antecedente = list(row['antecedents'])[0]  # Convertendo frozenset para lista
+            consequentes = list(row['consequents'])    # Convertendo frozenset para lista
+            confidence = row['confidence']      # Multiplicando por 100 para obter a porcentagem
+            for consequent in consequentes:
+                data['antecedents'].append(antecedente)
+                data['consequents'].append(consequent)
+                data['confidence'].append(confidence)
 
+        # Criando o DataFrame
+        df = pd.DataFrame(data)
 
+        # Criando uma nova coluna contendo a contagem de ocorrências
+        df['count'] = 1
 
+        # Agrupando os dados para criar as barras empilhadas e ordenando a contagem de antecedentes em ordem decrescente
+        grouped_df = df.groupby(['antecedents', 'consequents']).size().unstack(fill_value=0)
+        grouped_df = grouped_df[grouped_df.sum().sort_values(ascending=False).index]
 
+        # Criando o gráfico de barras empilhadas
+        fig = go.Figure()
 
+        # Define a paleta de cores em tons de azul
+        colors = ['royalblue', 'lightblue', 'skyblue', 'deepskyblue', 'dodgerblue', 'cornflowerblue', 'steelblue']
 
+        for i, consequent in enumerate(grouped_df.columns):
+            fig.add_trace(go.Bar(
+                y=grouped_df.index,
+                x=grouped_df[consequent],
+                name=consequent,
+                orientation='h',
+                marker=dict(color=colors[i % len(colors)])
+            ))
 
+        # Atualizando o layout do gráfico
+        fig.update_layout(
+            barmode='stack',
+            yaxis_title='Antecedents',
+            xaxis_title='Ocorrências',
+            title=''
+        )
+        fig.update_layout(height=800, width=1400)
+
+        st.markdown('#### <span style="color:#00547c"> Gráfico de barras empilhadas relacionando produtos antecedentes com consequentes</span>', unsafe_allow_html=True) 
+        # Exibindo o gráfico
+        st.plotly_chart(fig)
+        #####################################################################################
+        ############################# Recomendacao por Cliente ##############################
+        st.markdown('#### <span style="color:#00547c"> Filtrando por Cliente: </span>', unsafe_allow_html=True) 
+
+        produto_counts = filtered_df_pf.groupby(['ID Cliente', 'Produto GPOM e Área de Atuação']).size()
+        
+        grupo_clientes = df_pf.groupby(['ID Cliente', 'Data de Nascimento']).size()
+        
+        # Filtrar para obter apenas clientes com produtos que aparecem mais de uma vez
+        clientes_com_produtos_repetidos = produto_counts[produto_counts > 2].reset_index()['ID Cliente'].unique()
+
+        # Usar esse filtro para os cliente_options no selectbox
+        cliente_options = clientes_com_produtos_repetidos
+        select_cliente = st.selectbox('Selecione um Cliente', cliente_options)
+
+        produtos = filtered_df_pf[filtered_df_pf['ID Cliente'] == select_cliente]['Produto GPOM e Área de Atuação'].unique()
+        associated_products = find_associated_products(produtos, regras_pf)
+
+        with st.expander(f'Produtos comprados e recomendados do cliente {select_cliente}', expanded=False):
+            col1, col2 = st.columns(2)
+            with col1: 
+                st.markdown('#### <span style="color:#00547c"> Produtos comprados </span>', unsafe_allow_html=True)
+                st.dataframe(produtos, use_container_width=True)
+            with col2:
+                st.markdown('#### <span style="color:#00547c"> Produtos recomendados </span>', unsafe_allow_html=True)
+                if associated_products:
+                    st.dataframe(associated_products, use_container_width=True)
+                else:
+                    # Se não houver produtos associados, mostrar uma mensagem
+                    st.write("Não há produtos associados para mostrar.")
+       #####################################################################################
 ############################################################################################################
 ######################################### PÁGINA 4 - CONTATO ###############################################
 ############################################################################################################

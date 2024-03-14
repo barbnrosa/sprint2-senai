@@ -60,3 +60,23 @@ def processar_regras_associacao_pj(df_pj):
 
     regras_apriori = association_rules(items_frequentes_apriori_sorted, metric='confidence', min_threshold=0.5)
     return regras_apriori
+
+def find_associated_products(client_products, rules_df):
+            associated_products = set()
+            
+            # Convertendo client_products para sets para facilitar a comparação
+            client_product_sets = [frozenset([item]) for item in client_products]
+            
+            for client_product_set in client_product_sets:
+                for _, row in rules_df.iterrows():
+                    # Se o produto do cliente é um subconjunto dos antecedentes ou dos consequentes
+                    if client_product_set.issubset(row['antecedents']) or client_product_set.issubset(row['consequents']):
+                        # Adicionamos os produtos associados dos antecedentes e dos consequentes
+                        associated_products.update(row['antecedents'].union(row['consequents']))
+            
+            client_product_sets_2 =  frozenset(client_products)
+            ## Removendo os produtos que o cliente já compra, já que estamos interessados apenas nos novos produtos associados
+            associated_products.difference_update(client_product_sets_2)
+            
+            # Converter o set em uma lista para exibição
+            return list(associated_products)
