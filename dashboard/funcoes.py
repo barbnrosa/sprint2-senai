@@ -55,8 +55,8 @@ def processar_regras_associacao_pj(df_pj):
     # transformar em dataframe
     transacao_transformado = pd.DataFrame(transacao_te, columns=te.columns_)
 
-    items_frequentes_apriori = apriori(transacao_transformado, use_colnames=True, min_support=0.02)
+    items_frequentes_apriori = apriori(transacao_transformado, use_colnames=True, min_support=0.1)
     items_frequentes_apriori_sorted = items_frequentes_apriori.sort_values(['support'],ascending=False)
 
-    regras_apriori = association_rules(items_frequentes_apriori_sorted, metric='confidence', min_threshold=0.2)
+    regras_apriori = association_rules(items_frequentes_apriori_sorted, metric='confidence', min_threshold=0.5)
     return regras_apriori
