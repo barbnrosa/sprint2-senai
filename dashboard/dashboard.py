@@ -263,7 +263,7 @@ elif choose == "Regra de Associação":
                 csv = regras_pj.to_csv(index=False)
                 st.download_button(label="Baixar CSV", data=csv, file_name='regras_apriori_pj.csv', mime='text/csv', key='exported_pj')
 
-        # Construção do DataFrame para o Treemap
+        # Construção do DataFrame 
         data = {'antecedents': [], 'consequents': [], 'confidence': []}
         for index, row in regras_pj.iterrows():
             antecedente = list(row['antecedents'])[0]  # Convertendo frozenset para lista
@@ -277,16 +277,39 @@ elif choose == "Regra de Associação":
         # Criando o DataFrame
         df = pd.DataFrame(data)
 
-        # Criando o Treemap com rótulos de porcentagem de confiança
-        fig = px.treemap(df, path=['antecedents', 'consequents'], color='antecedents', 
-                        labels={'confidence': 'Confidence (%)'},
-                        hover_data={'confidence': True}, color_discrete_sequence=px.colors.sequential.Blues)  # Exibindo a porcentagem de confiança ao passar o mouse
+        # Criando uma nova coluna contendo a contagem de ocorrências
+        df['count'] = 1
 
-        # Adicionando rótulos de confiança em cada retângulo
-        #fig.update_traces(textinfo='label+percent entry')
-        fig.update_layout(height=700, width=1200)
+        # Agrupando os dados para criar as barras empilhadas e ordenando a contagem de antecedentes em ordem decrescente
+        grouped_df = df.groupby(['antecedents', 'consequents']).size().unstack(fill_value=0)
+        grouped_df = grouped_df[grouped_df.sum().sort_values(ascending=False).index]
 
-        # Exibindo o Treemap com Streamlit
+        # Criando o gráfico de barras empilhadas
+        fig = go.Figure()
+
+        # Define a paleta de cores em tons de azul
+        colors = ['royalblue', 'lightblue', 'skyblue', 'deepskyblue', 'dodgerblue', 'cornflowerblue', 'steelblue']
+
+        for i, consequent in enumerate(grouped_df.columns):
+            fig.add_trace(go.Bar(
+                y=grouped_df.index,
+                x=grouped_df[consequent],
+                name=consequent,
+                orientation='h',
+                marker=dict(color=colors[i % len(colors)])
+            ))
+
+        # Atualizando o layout do gráfico
+        fig.update_layout(
+            barmode='stack',
+            yaxis_title='Antecedents',
+            xaxis_title='Ocorrências',
+            title=''
+        )
+        fig.update_layout(height=800, width=1400)
+
+        st.markdown('#### <span style="color:#00547c"> Gráfico de barras empilhadas relacionando produtos antecedentes com consequentes</span>', unsafe_allow_html=True) 
+        # Exibindo o gráfico
         st.plotly_chart(fig)
 
     with aba2:
